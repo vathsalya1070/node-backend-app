@@ -17,9 +17,8 @@ exports.findAll = async (condition = {}) => {
     return result;
 };
 
+exports.aggregate = async (input) => {
+    const result = await article.aggregate(input);
+    return result;
+};
 
-// exports.findWithPopulate = async (articleCondition = {}, likesCondition = {}, commentsCondition = {}) => {
-//     const result = await article.findOne(articleCondition).populate({path: "likes", match: likesCondition}).populate({path: "comments", match: commentsCondition});
-//     console.log(result)
-//     return result;
-// };
