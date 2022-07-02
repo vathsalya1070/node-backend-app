@@ -8,6 +8,7 @@ const replyService = require("../service/reply");
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose")
 
 // To register a user
 router.post("/register", async (req, res) => {
@@ -175,14 +176,12 @@ router.put('/article/like/:id', auth, async (req, res) => {
         console.log("like a specific article input :: ", req);
         if (req.body.like) {
             const condition = {
-                article_id: req.params.id
+                article_id: req.params.id,
+                user_id: req.user.user_id
             };
             const updateObject = {
                 $inc: {
                     count: 1
-                },
-                $set: {
-                    user_id: req.user.user_id
                 }
             }
             const options = {
@@ -203,17 +202,12 @@ router.put('/article/like/:id', auth, async (req, res) => {
 router.put('/article/comment/:id', auth, async (req, res) => {
     try {
         console.log("comment a specific article input :: ", req);
-        const condition = {
-            article_id: req.params.id
+        const insertObj = {
+            article_id: req.params.id,
+            user_id: req.user.user_id,
+            comment: req.body.comment
         };
-        const updateObject = {
-            comment: req.body.comment,
-            user_id: req.user.user_id
-        }
-        const options = {
-            upsert: true
-        }
-        const result = await commentsService.updateOne(condition, updateObject, options);
+        const result = await commentsService.create(insertObj);
         res.status(200).json(result)
     } catch (error) {
         console.log("Error in comment a article :: ", error)
@@ -236,7 +230,7 @@ router.put('/article/comment/reply/:id', auth, async (req, res) => {
         const options = {
             upsert: true
         }
-        const result = await commentsService.updateOne(condition, updateObject, options);
+        const result = await replyService.updateOne(condition, updateObject, options);
         res.status(200).json(result)
     } catch (error) {
         console.log("Error in comment a article :: ", error)
@@ -267,5 +261,100 @@ router.put('/article/bookmark/:id', auth, async (req, res) => {
     }
 });
 
+// To get list of articles or get specific article with specific user
+router.get('/articlesdata', auth, async (req, res) => {
 
+    let user = req.query.user;
+    let id = req.query.article_id;
+    let matchQuery = {};
+    let aggreateQuery = [
+        {
+            $lookup: {
+                from: "comments",
+                localField: "_id",
+                foreignField: "article_id",
+                as: "comments"
+            }
+        },
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "article_id",
+                as: "likes"
+
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "likes.user_id",
+                foreignField: "_id",
+                as: "likes.users"
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "comments.user_id",
+                foreignField: "_id",
+                as: "users"
+            }
+        }, {
+            $project: {
+                "likes.users.password": 0,
+                "likes.users.bookmark_articles": 0,
+                "likes.users._v": 0,
+                "users.password": 0,
+                "users._v": 0
+            }
+        }
+
+    ]
+
+    if (user) {
+        matchQuery["user"] = user;
+    }
+    if (id) {
+        matchQuery["_id"] = mongoose.Types.ObjectId(id);
+    }
+    if (user || id) {
+        aggreateQuery.push({$match: matchQuery});
+    }
+    try {
+        let data = await articleService.aggregate(aggreateQuery);
+        data = await Promise.all(await data.map((rec) => {
+            rec.likes.count = rec.likes ?. users ?. length;
+            if (rec.comments.length) {
+                console.log(rec.users)
+                rec.comments = rec.comments.map((comment) => {
+                    const user = rec.users ?. find(o => o._id.equals(comment.user_id));
+                    comment.user = user;
+                    return comment;
+                })
+            }
+            delete rec.users;
+            return rec;
+        }));
+        console.log("Final response :: ", data);
+        return res.send(data);
+    } catch (error) {
+        console.log("Error in list of articles :: ", error)
+        res.status(400).json({message: error.message})
+    }
+});
+
+// To get user profile data by id
+router.get('/user/:id', auth, async (req, res) => {
+    try {
+        const id = req.params.id;
+        const user = await userService.findById(id);
+        console.log("User response :: ", user);
+        return res.send(user);
+
+    } catch (err) {
+        console.log("Error in user profile data :: ".err);
+        res.status(400).json({message: err.message})
+    }
+})
 module.exports = router;
