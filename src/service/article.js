@@ -21,3 +21,4 @@ exports.aggregate = async (input) => {
     const result = await article.aggregate(input);
     return result;
 };
+

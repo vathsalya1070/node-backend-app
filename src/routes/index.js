@@ -8,6 +8,7 @@ const replyService = require("../service/reply");
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require("jsonwebtoken");
+
 const mongoose = require("mongoose")
 
 // To register a user
@@ -230,6 +231,7 @@ router.put('/article/comment/reply/:id', auth, async (req, res) => {
         const options = {
             upsert: true
         }
+
         const result = await replyService.updateOne(condition, updateObject, options);
         res.status(200).json(result)
     } catch (error) {
@@ -357,4 +359,5 @@ router.get('/user/:id', auth, async (req, res) => {
         res.status(400).json({message: err.message})
     }
 })
+
 module.exports = router;
