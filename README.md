@@ -9,3 +9,5 @@ Install all the packages and run in your local machine, please follow the steps 
 - Run `npm start`
 
 Server listing port is `3000`
+
+Postman collection link `https://www.getpostman.com/collections/fd2ccae2d1322f73e3b9`
